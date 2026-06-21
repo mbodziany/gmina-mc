@@ -1,0 +1,62 @@
+# Gmina MC — aplikacja iOS + Apple Watch
+
+Natywna apka SwiftUI pokazująca, kto z ekipy aktualnie gra na serwerze Minecraft,
+oraz listę graczy z ostatnich 7 dni. Powiadomienia push (APNs) informują, gdy ktoś
+dołączy.
+
+## Struktura
+
+| Folder | Co to |
+|--------|-------|
+| `Shared/` | Modele, klient API i `ServerStore` współdzielone przez iOS i Watch |
+| `iOSApp/` | Aplikacja na iPhone (lista, ustawienia, rejestracja push) |
+| `WatchApp/` | Aplikacja na Apple Watch |
+| `project.yml` | Definicja projektu dla [XcodeGen](https://github.com/yonatankra/xcodegen) |
+
+> Plik `.xcodeproj` **nie jest** w repo — generujemy go z `project.yml`, żeby uniknąć
+> konfliktów. To standardowe podejście.
+
+## Wymagania
+
+- macOS z Xcode 15+
+- Konto Apple Developer (do push i instalacji na zegarku)
+- [XcodeGen](https://github.com/yonatankra/xcodegen): `brew install xcodegen`
+
+## Uruchomienie
+
+```bash
+cd ios
+# 1. Wpisz swój Team ID w project.yml (pole DEVELOPMENT_TEAM)
+xcodegen generate
+open GminaMC.xcodeproj
+```
+
+W Xcode:
+1. Wybierz target **GminaMC** → zakładka *Signing & Capabilities* → ustaw swój zespół.
+   To samo dla **GminaMC Watch App**.
+2. Uruchom na iPhonie (push działa tylko na fizycznym urządzeniu, nie w symulatorze).
+3. W apce otwórz ⚙️ i wpisz adres backendu, np. `https://gmina-mc.fly.dev`
+   (oraz token, jeśli ustawiłeś `API_TOKEN` na serwerze).
+
+## Powiadomienia push (APNs)
+
+Aby działały powiadomienia „X dołączył do serwera":
+
+1. W [Apple Developer](https://developer.apple.com) → *Keys* utwórz klucz APNs (.p8).
+   Zapisz **Key ID** i **Team ID**.
+2. Włącz *Push Notifications* dla App ID `xyz.mikebravo.gminamc`.
+3. Wartości klucza ustaw jako sekrety na backendzie (`APNS_KEY`, `APNS_KEY_ID`,
+   `APNS_TEAM_ID`, `APNS_BUNDLE_ID`) — patrz `../server/README.md`.
+
+Apka przy starcie prosi o zgodę na powiadomienia i sama rejestruje token urządzenia
+w backendzie (`POST /api/devices`).
+
+## Konfiguracja identyfikatorów
+
+Domyślnie używamy:
+- Bundle ID iOS: `xyz.mikebravo.gminamc`
+- Bundle ID Watch: `xyz.mikebravo.gminamc.watchkitapp`
+- App Group: `group.xyz.mikebravo.gminamc` (współdzielone ustawienia iOS ↔ Watch)
+
+Jeśli chcesz własny prefix, zmień je spójnie w `project.yml`, `WatchApp/Info.plist`
+(`WKCompanionAppBundleIdentifier`) oraz w `Shared/APIClient.swift` (nazwa App Group).

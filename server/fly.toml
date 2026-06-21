@@ -1,0 +1,29 @@
+# Fly.io deployment config. Run `fly launch --no-deploy` once to create the app,
+# then set secrets and `fly deploy`. See server/README.md for the full walkthrough.
+app = "gmina-mc"
+primary_region = "waw" # Warsaw — change to your nearest region
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  PORT = "8080"
+  POLL_INTERVAL_SECONDS = "20"
+  ROSTER_DAYS = "7"
+  DB_PATH = "/app/data/gmina.db"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = false   # keep the poller running 24/7
+  auto_start_machines = true
+  min_machines_running = 1
+
+# Persist the SQLite database across deploys.
+[[mounts]]
+  source = "gmina_data"
+  destination = "/app/data"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "256mb"
