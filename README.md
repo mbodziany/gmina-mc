@@ -45,6 +45,7 @@ wraca do pingu. Aplikacja pokazuje, które źródło jest aktualnie aktywne.
 | [`ios/`](ios/) | Aplikacja SwiftUI na iPhone + Apple Watch (XcodeGen) | ✅ kompletny szkielet, do zbudowania w Xcode |
 
 Szczegóły uruchomienia w `server/README.md`, `plugin/README.md` i `ios/README.md`.
+**Jak to przetestować (warstwami, też bez Maca):** zobacz [`TESTING.md`](TESTING.md).
 
 ## Szybki start
 
