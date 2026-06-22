@@ -8,7 +8,9 @@ import {
   registerDevice,
   removeDevice,
 } from "./db.js";
-import { startPoller, pollEvents, isServerReachable, type PollEvent } from "./poller.js";
+import { startPoller } from "./poller.js";
+import { trackerEvents, isServerReachable, activeSource, type TrackerEvent } from "./tracker.js";
+import { ingestRouter } from "./ingest.js";
 import { shutdownPush } from "./push.js";
 
 const app = express();
@@ -23,12 +25,16 @@ function auth(req: Request, res: Response, next: NextFunction): void {
 }
 
 app.get("/health", (_req, res) => {
-  res.json({ ok: true, serverReachable: isServerReachable() });
+  res.json({ ok: true, serverReachable: isServerReachable(), source: activeSource() });
 });
+
+// Plugin push endpoints (primary source).
+app.use("/api/ingest", ingestRouter);
 
 function buildStatus() {
   return {
     serverReachable: isServerReachable(),
+    source: activeSource(),
     onlineCount: currentlyOnline().length,
     rosterDays: config.rosterDays,
     online: currentlyOnline(),
@@ -65,7 +71,7 @@ wss.on("connection", (ws: WebSocket) => {
   ws.send(JSON.stringify({ type: "status", data: buildStatus() }));
 });
 
-pollEvents.on("event", (e: PollEvent) => {
+trackerEvents.on("event", (e: TrackerEvent) => {
   const payload = JSON.stringify({ type: "event", event: e, data: buildStatus() });
   for (const client of wss.clients) {
     if (client.readyState === WebSocket.OPEN) client.send(payload);

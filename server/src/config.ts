@@ -21,9 +21,14 @@ export const config = {
   pollIntervalMs: num(process.env.POLL_INTERVAL_SECONDS, 20) * 1000,
   offlineGracePolls: num(process.env.OFFLINE_GRACE_POLLS, 3),
   rosterDays: num(process.env.ROSTER_DAYS, 7),
+  // How long after the last plugin heartbeat we still trust the plugin before
+  // falling back to SLP pinging.
+  pluginTimeoutMs: num(process.env.PLUGIN_TIMEOUT_SECONDS, 60) * 1000,
   http: {
     port: num(process.env.PORT, 8080),
     apiToken: process.env.API_TOKEN?.trim() || "",
+    // Shared secret the in-game plugin uses to push data to /api/ingest/*.
+    ingestToken: process.env.INGEST_TOKEN?.trim() || "",
   },
   dbPath: process.env.DB_PATH?.trim() || "./data/gmina.db",
   apns: {

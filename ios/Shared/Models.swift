@@ -18,17 +18,35 @@ struct Player: Codable, Identifiable, Hashable {
     var totalPlaytime: TimeInterval { Double(totalPlaytimeMs) / 1000 }
 }
 
+/// Which backend source produced the data.
+enum DataSource: String {
+    case plugin   // in-game plugin: accurate, full list, instant
+    case slp      // Server List Ping fallback: capped sample, ~poll latency
+    case none     // server unreachable
+
+    var label: String {
+        switch self {
+        case .plugin: return "Wtyczka"
+        case .slp: return "Ping"
+        case .none: return "Offline"
+        }
+    }
+}
+
 /// Full snapshot returned by GET /api/status.
 struct ServerStatus: Codable {
     let serverReachable: Bool
+    let source: String?
     let onlineCount: Int
     let rosterDays: Int
     let online: [Player]
     let roster: [Player]
     let updatedAt: Int64
 
+    var dataSource: DataSource { DataSource(rawValue: source ?? "none") ?? .none }
+
     static let empty = ServerStatus(
-        serverReachable: false, onlineCount: 0, rosterDays: 7,
+        serverReachable: false, source: "none", onlineCount: 0, rosterDays: 7,
         online: [], roster: [], updatedAt: 0
     )
 }

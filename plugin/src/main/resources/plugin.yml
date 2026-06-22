@@ -1,0 +1,6 @@
+name: GminaMC
+version: 1.0.0
+main: xyz.mikebravo.gminamc.GminaMCPlugin
+api-version: "1.20"
+author: Gmina MC
+description: Reports online players to the Gmina MC backend.

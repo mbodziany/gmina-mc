@@ -1,23 +1,27 @@
-# Gmina MC — backend (poller + API + push)
+# Gmina MC — backend (tracker + API + push)
 
-Usługa, która:
+Usługa, która zbiera obecność graczy z **dwóch źródeł** i wystawia ją aplikacji:
 
-1. **Odpytuje** wasz serwer Minecraft protokołem *Server List Ping* (to samo, czym
-   posługuje się lista serwerów w grze) — **nie trzeba niczego instalować na serwerze
-   kolegi**, wystarczy adres z joinmc.gg.
-2. **Wykrywa** kto dołączył / wyszedł, zapisuje sesje w SQLite i liczy statystyki
-   z ostatnich N dni.
-3. **Wysyła push** (APNs) do apki na iPhone/Apple Watch, gdy ktoś wejdzie na serwer.
-4. **Udostępnia API** dla aplikacji mobilnej.
+1. **Plugin (podstawowe):** serwer z pluginem `GminaMC` wysyła pełną listę online
+   (`/api/ingest/heartbeat`) oraz natychmiastowe zdarzenia join/quit (`/api/ingest/event`).
+2. **Ping / Server List Ping (fallback):** gdy plugin milczy, backend sam odpytuje serwer
+   tak jak lista serwerów w grze — **bez niczego instalowanego u kolegi**, wystarczy adres.
 
-## Jak to działa (i ograniczenia)
+Wspólny moduł `tracker` reconciliuje stan niezależnie od źródła: otwiera/zamyka sesje
+w SQLite, liczy statystyki z ostatnich N dni i wysyła **push (APNs)**, gdy ktoś wejdzie.
 
-Vanilla Java w odpowiedzi na ping zwraca liczbę graczy online oraz *próbkę* nicków
-(domyślnie do ~12). Dla paczki znajomych to wystarcza i daje prawdziwe nicki + UUID.
-Czas wejścia jest przybliżony z dokładnością do interwału odpytywania (domyślnie 20 s).
+## Przełączanie źródeł
 
-> Gdyby serwer kiedyś przeszedł na Paper/Spigot, można dopisać plugin wysyłający
-> dokładne zdarzenia webhookiem do tego samego API — API jest na to gotowe.
+- Każdy heartbeat pluginu oznacza go jako „aktywny" na `PLUGIN_TIMEOUT_SECONDS`.
+- Dopóki plugin jest aktywny, poller SLP **odpuszcza** (plugin jest dokładniejszy).
+- Gdy heartbeaty ucichną, backend automatycznie wraca do pingu.
+- `GET /api/status` zwraca pole `source`: `"plugin"`, `"slp"` albo `"none"`.
+
+## Ograniczenia pingu (fallback)
+
+Vanilla w odpowiedzi na ping zwraca liczbę online + *próbkę* nicków (do ~12) i przybliżony
+czas wejścia (z dokładnością do interwału). Plugin tych ograniczeń nie ma. Wymaga jednak
+serwera na Paper/Spigot — patrz `../plugin/README.md`.
 
 ## Konfiguracja
 
@@ -38,24 +42,31 @@ Najważniejsze zmienne (pełna lista w `.env.example`):
 | `MC_PORT` | Port — zostaw pusty, jeśli używany jest rekord SRV |
 | `POLL_INTERVAL_SECONDS` | Co ile sekund odpytywać (domyślnie 20) |
 | `ROSTER_DAYS` | Okno „ostatnich graczy" w dniach (domyślnie 7) |
-| `API_TOKEN` | Opcjonalny sekret; klient wysyła `Authorization: Bearer <token>` |
+| `API_TOKEN` | Opcjonalny sekret klienta; apka wysyła `Authorization: Bearer <token>` |
+| `INGEST_TOKEN` | Sekret pluginu; plugin wysyła `Authorization: Bearer <token>` |
+| `PLUGIN_TIMEOUT_SECONDS` | Po jakim czasie ciszy pluginu wrócić do pingu (domyślnie 60) |
 | `APNS_*` | Dane do powiadomień push (patrz niżej) |
 
 ## API
 
 | Metoda | Ścieżka | Opis |
 |--------|---------|------|
-| GET | `/health` | Status usługi |
-| GET | `/api/status` | Online + roster z ostatnich N dni |
+| GET | `/health` | Status usługi + aktywne źródło |
+| GET | `/api/status` | `source` + online + roster z ostatnich N dni |
 | POST | `/api/devices` | Rejestracja tokenu APNs: `{"token":"..."}` |
 | DELETE | `/api/devices/:token` | Wyrejestrowanie |
+| POST | `/api/ingest/heartbeat` | (plugin) pełna lista online: `{"players":[{"uuid","name"}]}` |
+| POST | `/api/ingest/event` | (plugin) pojedyncze zdarzenie: `{"type":"join\|quit","uuid","name"}` |
 | WS | `/ws` | Strumień zdarzeń na żywo (join/leave/tick) |
+
+Endpointy `/api/ingest/*` autoryzowane są nagłówkiem `Authorization: Bearer <INGEST_TOKEN>`.
 
 Przykład odpowiedzi `/api/status`:
 
 ```json
 {
   "serverReachable": true,
+  "source": "plugin",
   "onlineCount": 1,
   "rosterDays": 7,
   "online": [{ "id": "…", "name": "Steve", "online": true, "currentSessionStart": 1750000000000, … }],
@@ -84,6 +95,7 @@ Bez nich API działa normalnie, tylko bez push.
 fly launch --no-deploy           # użyje dołączonego fly.toml; nazwij apkę
 fly volumes create gmina_data --size 1 --region waw
 fly secrets set MC_HOST=twoj-serwer.joinmc.gg
+fly secrets set INGEST_TOKEN="$(openssl rand -hex 16)"   # ten sam wpisz w config pluginu
 # push (jednolinijkowo, klucz .p8 jako sekret):
 fly secrets set APNS_KEY="$(cat AuthKey_XXXX.p8)" APNS_KEY_ID=... APNS_TEAM_ID=... APNS_BUNDLE_ID=xyz.mikebravo.gminamc APNS_PRODUCTION=false
 fly deploy

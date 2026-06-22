@@ -31,13 +31,22 @@ struct ContentView: View {
     }
 
     private var serverIndicator: some View {
-        HStack(spacing: 6) {
+        let source = store.status.dataSource
+        return HStack(spacing: 6) {
             Circle()
                 .fill(store.status.serverReachable ? .green : .red)
                 .frame(width: 9, height: 9)
             Text(store.status.serverReachable ? "Serwer online" : "Serwer offline")
                 .font(.caption)
                 .foregroundStyle(.secondary)
+            if store.status.serverReachable {
+                Text(source.label)
+                    .font(.caption2.weight(.medium))
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(source == .plugin ? Color.green.opacity(0.2) : Color.orange.opacity(0.2))
+                    .clipShape(Capsule())
+            }
         }
     }
 

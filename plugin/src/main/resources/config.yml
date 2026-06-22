@@ -1,0 +1,10 @@
+# Gmina MC plugin configuration
+
+# Address of your Gmina MC backend (the same one the app uses).
+backend-url: "https://gmina-mc.fly.dev"
+
+# Shared secret. Must match INGEST_TOKEN set on the backend.
+ingest-token: "CHANGE-ME"
+
+# How often to send the full online roster, in seconds.
+heartbeat-seconds: 20
