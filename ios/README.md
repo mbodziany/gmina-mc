@@ -8,10 +8,24 @@ dołączy.
 
 | Folder | Co to |
 |--------|-------|
-| `Shared/` | Modele, klient API i `ServerStore` współdzielone przez iOS i Watch |
+| `Shared/` | Modele, klient API, `ServerStore`, provider i widoki widgetów (iOS + Watch) |
 | `iOSApp/` | Aplikacja na iPhone (lista, ustawienia, rejestracja push) |
 | `WatchApp/` | Aplikacja na Apple Watch |
+| `iOSWidget/` | Widget na ekran główny i Lock Screen (WidgetKit) |
+| `WatchWidget/` | Komplikacje na tarczę zegarka (WidgetKit, rodziny `accessory*`) |
 | `project.yml` | Definicja projektu dla [XcodeGen](https://github.com/yonatankra/xcodegen) |
+
+## Widgety i komplikacje
+
+- **iPhone:** `systemSmall` / `systemMedium` (ekran główny) oraz `accessoryCircular`,
+  `accessoryInline`, `accessoryRectangular` (Lock Screen) — licznik online + nicki.
+- **Apple Watch:** komplikacje `accessoryCircular`, `accessoryInline`,
+  `accessoryRectangular`, `accessoryCorner` — dodaj je do tarczy przez *Edytuj tarczę*.
+
+Widgety pobierają status z backendu (odświeżanie ~co 15 min, budżet systemowy) i
+korzystają ze wspólnego cache w App Group, więc renderują się natychmiast. Gdy
+aplikacja jest otwarta, odświeża je od razu po każdym pobraniu (`WidgetCenter`).
+Wszystkie targety współdzielą App Group `group.xyz.mikebravo.gminamc`.
 
 > Plik `.xcodeproj` **nie jest** w repo — generujemy go z `project.yml`, żeby uniknąć
 > konfliktów. To standardowe podejście.

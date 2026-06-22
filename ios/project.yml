@@ -37,6 +37,7 @@ targets:
           - group.xyz.mikebravo.gminamc
     dependencies:
       - target: GminaMC Watch App
+      - target: GminaMCWidget
 
   GminaMC Watch App:
     type: application
@@ -51,6 +52,44 @@ targets:
         ENABLE_PREVIEWS: "YES"
     entitlements:
       path: WatchApp/GminaMCWatch.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.xyz.mikebravo.gminamc
+    dependencies:
+      - target: GminaMC Watch Widget
+
+  # iOS widget: home screen + Lock Screen families
+  GminaMCWidget:
+    type: app-extension
+    platform: iOS
+    sources:
+      - Shared
+      - iOSWidget
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: xyz.mikebravo.gminamc.widget
+        INFOPLIST_FILE: iOSWidget/Info.plist
+        ENABLE_PREVIEWS: "YES"
+    entitlements:
+      path: iOSWidget/GminaMCWidget.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.xyz.mikebravo.gminamc
+
+  # watchOS complication (WidgetKit accessory families, incl. corner)
+  GminaMC Watch Widget:
+    type: app-extension
+    platform: watchOS
+    sources:
+      - Shared
+      - WatchWidget
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: xyz.mikebravo.gminamc.watchkitapp.complication
+        INFOPLIST_FILE: WatchWidget/Info.plist
+        ENABLE_PREVIEWS: "YES"
+    entitlements:
+      path: WatchWidget/GminaMCWatchWidget.entitlements
       properties:
         com.apple.security.application-groups:
           - group.xyz.mikebravo.gminamc

@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+import WidgetKit
 
 /// Observable state shared by the iOS and Watch UIs. Refreshes on a timer
 /// (simple and works identically on watchOS); push wakes the user separately.
@@ -38,6 +39,9 @@ final class ServerStore: ObservableObject {
             status = try await client.fetchStatus()
             errorMessage = nil
             lastUpdated = Date()
+            // Keep widgets and complications in sync with the live app.
+            SharedCache.save(status)
+            WidgetCenter.shared.reloadAllTimelines()
         } catch {
             errorMessage = "Brak połączenia z serwerem statusów"
         }

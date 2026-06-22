@@ -65,11 +65,11 @@ Szczegóły uruchomienia w `server/README.md`, `plugin/README.md` i `ios/README.
 - 🕓 Gracze z ostatnich 7 dni (konfigurowalne) z łącznym czasem gry
 - 🔔 Powiadomienie push, gdy ktoś dołączy do serwera
 - ⌚️ Pełna aplikacja na Apple Watch
+- 🧩 Widgety na iPhone (ekran główny + Lock Screen) i komplikacje na tarczę zegarka (WidgetKit)
 - 🏷️ Wskaźnik aktywnego źródła danych (wtyczka / ping) w apce
 - 🔒 Opcjonalny token API + osobny sekret dla pluginu
 
 ## Następne kroki (pomysły)
 
-- Komplikacja na tarczę zegarka i widget na ekran iPhone'a (WidgetKit) z licznikiem online
 - Wykresy aktywności / „o której zwykle gracie"
 - Wariant powiadomień przez Telegram/ntfy bez konta Apple Developer
