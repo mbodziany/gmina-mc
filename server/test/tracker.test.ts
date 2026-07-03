@@ -10,6 +10,7 @@ import { setTimeout as sleep } from "node:timers/promises";
 process.env.DB_PATH = join(mkdtempSync(join(tmpdir(), "gmina-test-")), "test.db");
 process.env.MC_HOST = "example.invalid";
 process.env.PLUGIN_TIMEOUT_SECONDS = "1"; // fast fallback for the timeout test
+process.env.SLP_STALE_SECONDS = "1"; // fast eviction for the capped-sample test
 
 const tracker = await import("../src/tracker.js");
 const db = await import("../src/db.js");
@@ -78,4 +79,31 @@ test("markUnreachable closes every open session", () => {
   assert.equal(tracker.isServerReachable(), false);
   assert.equal(tracker.activeSource(), "none");
   assert.ok(db.roster().every((p) => !p.online));
+});
+
+test("capped slp sample does not evict players until they go stale", async () => {
+  tracker.applySnapshot(
+    [
+      { id: "a", name: "A" },
+      { id: "b", name: "B" },
+    ],
+    2,
+    "slp",
+  );
+  // Sample capped: only A visible, but the server still reports 2 online.
+  tracker.applySnapshot([{ id: "a", name: "A" }], 2, "slp");
+  assert.deepEqual(names(), ["A", "B"], "B kept — probably just outside the sample");
+  // …but once B hasn't shown up in any sample past the staleness window:
+  await sleep(1100);
+  tracker.applySnapshot([{ id: "a", name: "A" }], 2, "slp");
+  assert.deepEqual(names(), ["A"]);
+  // A complete snapshot (count matches sample) evicts immediately.
+  tracker.applySnapshot([{ id: "b", name: "B" }], 1, "slp");
+  assert.deepEqual(names(), ["B"]);
+});
+
+test("rejoin within the cooldown suppresses push, later rejoin does not", () => {
+  assert.equal(tracker.shouldNotify(null), true, "first-ever join notifies");
+  assert.equal(tracker.shouldNotify(Date.now() - 1000), false, "left 1s ago — flap");
+  assert.equal(tracker.shouldNotify(Date.now() - 10 * 60 * 1000), true, "left 10 min ago");
 });

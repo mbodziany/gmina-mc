@@ -15,6 +15,12 @@ dołączy.
 | `WatchWidget/` | Komplikacje na tarczę zegarka (WidgetKit, rodziny `accessory*`) |
 | `project.yml` | Definicja projektu dla [XcodeGen](https://github.com/yonaskolb/XcodeGen) |
 
+## Aktualizacje na żywo
+
+Przy otwartej aplikacji `ServerStore` łączy się WebSocketem z `/ws` — wejścia i wyjścia
+graczy pojawiają się w ~1 s, bez czekania na cykl odpytywania. Polling REST (15 s)
+zostaje jako fallback i ponawia połączenie WS po zerwaniu.
+
 ## Widgety i komplikacje
 
 - **iPhone:** `systemSmall` / `systemMedium` (ekran główny) oraz `accessoryCircular`,

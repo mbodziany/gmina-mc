@@ -2,12 +2,7 @@ import express, { type NextFunction, type Request, type Response } from "express
 import { createServer, type IncomingMessage } from "node:http";
 import { WebSocketServer, WebSocket } from "ws";
 import { config } from "./config.js";
-import {
-  roster,
-  currentlyOnline,
-  registerDevice,
-  removeDevice,
-} from "./db.js";
+import { roster, registerDevice, removeDevice } from "./db.js";
 import { startPoller } from "./poller.js";
 import {
   trackerEvents,
@@ -20,7 +15,7 @@ import { ingestRouter } from "./ingest.js";
 import { shutdownPush } from "./push.js";
 
 const app = express();
-app.use(express.json());
+app.use(express.json({ limit: "64kb" })); // heartbeat payloads are tiny
 
 // Optional bearer-token auth for every /api route.
 function auth(req: Request, res: Response, next: NextFunction): void {
@@ -38,13 +33,15 @@ app.get("/health", (_req, res) => {
 app.use("/api/ingest", ingestRouter);
 
 function buildStatus() {
+  const all = roster();
+  const online = all.filter((p) => p.online);
   return {
     serverReachable: isServerReachable(),
     source: activeSource(),
-    onlineCount: currentlyOnline().length,
+    onlineCount: online.length,
     rosterDays: config.rosterDays,
-    online: currentlyOnline(),
-    roster: roster(),
+    online,
+    roster: all,
     updatedAt: Date.now(),
   };
 }

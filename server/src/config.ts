@@ -24,11 +24,19 @@ export const config = {
   // How long after the last plugin heartbeat we still trust the plugin before
   // falling back to SLP pinging.
   pluginTimeoutMs: num(process.env.PLUGIN_TIMEOUT_SECONDS, 60) * 1000,
+  // Anti-flap: a player who rejoins within this window doesn't trigger
+  // another push notification (their session is still recorded).
+  pushRejoinCooldownMs: num(process.env.PUSH_REJOIN_COOLDOWN_SECONDS, 300) * 1000,
+  // SLP's player sample is capped (~12). When the reported online count
+  // exceeds the sample, a missing player may just be outside the sample —
+  // only mark them offline after they haven't been seen for this long.
+  slpStaleMs: num(process.env.SLP_STALE_SECONDS, 180) * 1000,
   http: {
     port: num(process.env.PORT, 8080),
     apiToken: process.env.API_TOKEN?.trim() || "",
     // Shared secret the in-game plugin uses to push data to /api/ingest/*.
     ingestToken: process.env.INGEST_TOKEN?.trim() || "",
+    ingestRateLimitPerMinute: num(process.env.INGEST_RATE_LIMIT_PER_MINUTE, 240),
   },
   dbPath: process.env.DB_PATH?.trim() || "./data/gmina.db",
   apns: {

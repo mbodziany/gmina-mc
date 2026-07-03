@@ -45,6 +45,9 @@ Najważniejsze zmienne (pełna lista w `.env.example`):
 | `API_TOKEN` | Opcjonalny sekret klienta; apka wysyła `Authorization: Bearer <token>` |
 | `INGEST_TOKEN` | Sekret pluginu; plugin wysyła `Authorization: Bearer <token>` |
 | `PLUGIN_TIMEOUT_SECONDS` | Po jakim czasie ciszy pluginu wrócić do pingu (domyślnie 60) |
+| `PUSH_REJOIN_COOLDOWN_SECONDS` | Anti-flap: powrót w tym oknie nie wysyła ponownego push (300) |
+| `SLP_STALE_SECONDS` | Przy uciętej próbce pingu: po ilu sekundach nieobecności w próbce uznać wyjście (180) |
+| `INGEST_RATE_LIMIT_PER_MINUTE` | Limit żądań/min na IP dla `/api/ingest/*` (240) |
 | `APNS_*` | Dane do powiadomień push (patrz niżej) |
 
 ## API
@@ -57,9 +60,11 @@ Najważniejsze zmienne (pełna lista w `.env.example`):
 | DELETE | `/api/devices/:token` | Wyrejestrowanie |
 | POST | `/api/ingest/heartbeat` | (plugin) pełna lista online: `{"players":[{"uuid","name"}]}` |
 | POST | `/api/ingest/event` | (plugin) pojedyncze zdarzenie: `{"type":"join\|quit","uuid","name"}` |
-| WS | `/ws` | Strumień zdarzeń na żywo (join/leave/tick) |
+| WS | `/ws` | Strumień zdarzeń na żywo (join/leave/tick); z niego korzysta apka |
 
-Endpointy `/api/ingest/*` autoryzowane są nagłówkiem `Authorization: Bearer <INGEST_TOKEN>`.
+Endpointy `/api/ingest/*` autoryzowane są nagłówkiem `Authorization: Bearer <INGEST_TOKEN>`
+i objęte limitem żądań. Przy ustawionym `API_TOKEN` WebSocket wymaga tokenu —
+nagłówkiem albo w URL: `wss://…/ws?token=<API_TOKEN>`.
 
 Przykład odpowiedzi `/api/status`:
 

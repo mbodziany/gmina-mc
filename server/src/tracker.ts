@@ -5,6 +5,7 @@ import {
   markOffline,
   markAllOffline,
   touch,
+  getLastSeen,
   onlinePlayerIds,
   type PlayerSnapshot,
 } from "./db.js";
@@ -45,6 +46,18 @@ function emit(e: TrackerEvent) {
 }
 
 /**
+ * Anti-flap: suppress the push notification when a player rejoins shortly
+ * after leaving (unstable connection). The session is still recorded and
+ * live events still fire — only the notification is skipped.
+ * `previousLastSeen` is the player's last_seen from before this join, i.e.
+ * for an offline player the moment they left.
+ */
+export function shouldNotify(previousLastSeen: number | null): boolean {
+  if (previousLastSeen === null) return true; // first time we see this player
+  return Date.now() - previousLastSeen >= config.pushRejoinCooldownMs;
+}
+
+/**
  * Reconciles the authoritative online list from a source with the DB:
  * opens/closes sessions, fires push on arrivals, emits live events.
  * SLP snapshots are ignored while the plugin is active (plugin is more accurate).
@@ -64,25 +77,38 @@ export function applySnapshot(
 
   const previouslyOnline = onlinePlayerIds();
   const currentIds = new Set(players.map((p) => p.id));
+  // SLP caps the player sample (~12): when the reported count exceeds what we
+  // received, a player missing from the sample may still be online.
+  const complete = source === "plugin" || players.length >= onlineCount;
 
   for (const p of players) {
     const wasOnline = previouslyOnline.has(p.id);
+    const prevSeen = wasOnline ? null : getLastSeen(p.id);
     const isNew = markOnline(p, wasOnline);
     if (isNew) {
       console.log(`[${source}] ${p.name} joined (online: ${onlineCount})`);
       emit({ type: "join", name: p.name, onlineCount, source });
-      void notifyJoin(p.name, onlineCount);
+      if (shouldNotify(prevSeen)) {
+        void notifyJoin(p.name, onlineCount);
+      } else {
+        console.log(`[push] skipping notification for ${p.name} (rejoined within cooldown)`);
+      }
     } else {
       touch(p.id);
     }
   }
 
   for (const id of previouslyOnline) {
-    if (!currentIds.has(id)) {
-      markOffline(id);
-      console.log(`[${source}] player ${id} left (online: ${onlineCount})`);
-      emit({ type: "leave", onlineCount, source });
+    if (currentIds.has(id)) continue;
+    if (!complete) {
+      // Might just be outside the capped sample — evict only after they
+      // haven't shown up in any sample for a while.
+      const seen = getLastSeen(id);
+      if (seen !== null && Date.now() - seen < config.slpStaleMs) continue;
     }
+    markOffline(id);
+    console.log(`[${source}] player ${id} left (online: ${onlineCount})`);
+    emit({ type: "leave", onlineCount, source });
   }
 
   emit({ type: "tick", onlineCount, source });
@@ -98,12 +124,18 @@ export function applyPluginEvent(type: "join" | "quit", player: PlayerSnapshot):
   const previouslyOnline = onlinePlayerIds();
 
   if (type === "join") {
-    const isNew = markOnline(player, previouslyOnline.has(player.id));
+    const wasOnline = previouslyOnline.has(player.id);
+    const prevSeen = wasOnline ? null : getLastSeen(player.id);
+    const isNew = markOnline(player, wasOnline);
     const count = onlinePlayerIds().size;
     if (isNew) {
       console.log(`[plugin] ${player.name} joined (event)`);
       emit({ type: "join", name: player.name, onlineCount: count, source: "plugin" });
-      void notifyJoin(player.name, count);
+      if (shouldNotify(prevSeen)) {
+        void notifyJoin(player.name, count);
+      } else {
+        console.log(`[push] skipping notification for ${player.name} (rejoined within cooldown)`);
+      }
     }
   } else {
     if (previouslyOnline.has(player.id)) {

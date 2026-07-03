@@ -5,6 +5,31 @@ import { applySnapshot, applyPluginEvent } from "./tracker.js";
 
 export const ingestRouter = Router();
 
+// Fixed-window rate limit per client IP. One plugin sends ~3 heartbeats/min
+// plus a few events, so the default (240/min) only stops abuse and floods.
+const WINDOW_MS = 60_000;
+const hits = new Map<string, { count: number; resetAt: number }>();
+
+function rateLimit(req: Request, res: Response, next: NextFunction): void {
+  const nowTs = Date.now();
+  if (hits.size > 1000) {
+    for (const [k, v] of hits) if (v.resetAt <= nowTs) hits.delete(k);
+  }
+  const key = req.ip || "unknown";
+  let entry = hits.get(key);
+  if (!entry || entry.resetAt <= nowTs) {
+    entry = { count: 0, resetAt: nowTs + WINDOW_MS };
+    hits.set(key, entry);
+  }
+  if (++entry.count > config.http.ingestRateLimitPerMinute) {
+    res.status(429).json({ error: "rate limited" });
+    return;
+  }
+  next();
+}
+
+ingestRouter.use(rateLimit);
+
 /** The in-game plugin authenticates with the shared INGEST_TOKEN. */
 function ingestAuth(req: Request, res: Response, next: NextFunction): void {
   if (!config.http.ingestToken) {

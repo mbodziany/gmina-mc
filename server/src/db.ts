@@ -83,6 +83,13 @@ export function touch(id: string): void {
   touchStmt.run(now(), id);
 }
 
+const lastSeenStmt = db.prepare("SELECT last_seen FROM players WHERE id = ?");
+/** When we last saw this player (for an offline player: when they left). */
+export function getLastSeen(id: string): number | null {
+  const row = lastSeenStmt.get(id) as { last_seen: number } | undefined;
+  return row?.last_seen ?? null;
+}
+
 const closeSessionStmt = db.prepare(`
   UPDATE sessions SET ended_at = ?
   WHERE player_id = ? AND ended_at IS NULL
@@ -108,48 +115,43 @@ export function currentlyOnline(): RosterEntry[] {
   return roster().filter((r) => r.online);
 }
 
+const rosterStmt = db.prepare(`
+  SELECT
+    p.id, p.name, p.first_seen, p.last_seen, p.online,
+    COUNT(s.id) AS cnt,
+    COALESCE(SUM(COALESCE(s.ended_at, @now) - s.started_at), 0) AS total,
+    MAX(CASE WHEN s.ended_at IS NULL THEN s.started_at END) AS open_start
+  FROM players p
+  LEFT JOIN sessions s ON s.player_id = p.id AND s.started_at >= @since
+  WHERE p.last_seen >= @since
+  GROUP BY p.id
+  ORDER BY p.last_seen DESC
+`);
+
 /** Players seen within the roster window, with aggregated stats over that window. */
 export function roster(): RosterEntry[] {
-  const since = now() - config.rosterDays * 24 * 60 * 60 * 1000;
-  const players = db
-    .prepare("SELECT * FROM players WHERE last_seen >= ? ORDER BY last_seen DESC")
-    .all(since) as {
+  const ts = now();
+  const since = ts - config.rosterDays * 24 * 60 * 60 * 1000;
+  const rows = rosterStmt.all({ now: ts, since }) as {
     id: string;
     name: string;
     first_seen: number;
     last_seen: number;
     online: number;
+    cnt: number;
+    total: number;
+    open_start: number | null;
   }[];
-
-  const aggStmt = db.prepare(`
-    SELECT
-      COUNT(*) AS cnt,
-      COALESCE(SUM(COALESCE(ended_at, ?) - started_at), 0) AS total
-    FROM sessions
-    WHERE player_id = ? AND started_at >= ?
-  `);
-  const openStmt = db.prepare(`
-    SELECT started_at FROM sessions WHERE player_id = ? AND ended_at IS NULL
-    ORDER BY started_at DESC LIMIT 1
-  `);
-
-  const ts = now();
-  return players.map((p) => {
-    const agg = aggStmt.get(ts, p.id, since) as { cnt: number; total: number };
-    const open = p.online
-      ? (openStmt.get(p.id) as { started_at: number } | undefined)
-      : undefined;
-    return {
-      id: p.id,
-      name: p.name,
-      online: Boolean(p.online),
-      firstSeen: p.first_seen,
-      lastSeen: p.last_seen,
-      sessionsCount: agg.cnt,
-      totalPlaytimeMs: agg.total,
-      currentSessionStart: open?.started_at ?? null,
-    };
-  });
+  return rows.map((r) => ({
+    id: r.id,
+    name: r.name,
+    online: Boolean(r.online),
+    firstSeen: r.first_seen,
+    lastSeen: r.last_seen,
+    sessionsCount: r.cnt,
+    totalPlaytimeMs: r.total,
+    currentSessionStart: r.online ? r.open_start : null,
+  }));
 }
 
 export function registerDevice(token: string): void {
