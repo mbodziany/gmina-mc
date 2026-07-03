@@ -104,7 +104,7 @@ struct PlayerRow: View {
     }
 }
 
-/// Minecraft head avatar via the public Crafatar service, falling back to initials.
+/// Minecraft head avatar via the public mc-heads.net service, falling back to initials.
 struct AvatarView: View {
     let name: String
 

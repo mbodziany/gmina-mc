@@ -13,7 +13,7 @@ dołączy.
 | `WatchApp/` | Aplikacja na Apple Watch |
 | `iOSWidget/` | Widget na ekran główny i Lock Screen (WidgetKit) |
 | `WatchWidget/` | Komplikacje na tarczę zegarka (WidgetKit, rodziny `accessory*`) |
-| `project.yml` | Definicja projektu dla [XcodeGen](https://github.com/yonatankra/xcodegen) |
+| `project.yml` | Definicja projektu dla [XcodeGen](https://github.com/yonaskolb/XcodeGen) |
 
 ## Widgety i komplikacje
 
@@ -24,8 +24,15 @@ dołączy.
 
 Widgety pobierają status z backendu (odświeżanie ~co 15 min, budżet systemowy) i
 korzystają ze wspólnego cache w App Group, więc renderują się natychmiast. Gdy
-aplikacja jest otwarta, odświeża je od razu po każdym pobraniu (`WidgetCenter`).
+aplikacja jest otwarta, odświeża je po każdej realnej zmianie (`WidgetCenter`).
 Wszystkie targety współdzielą App Group `group.xyz.mikebravo.gminamc`.
+
+### Ustawienia na zegarku
+
+App Group **nie synchronizuje się między iPhonem a zegarkiem** (osobne urządzenia),
+więc `WatchSync` (WatchConnectivity) sam przesyła adres backendu i token na Watch —
+po starcie apki iOS oraz po każdym zapisie w ⚙️ Ustawieniach. Wystarczy raz otworzyć
+apkę na iPhonie przy sparowanym zegarku; nic nie konfigurujesz na zegarku ręcznie.
 
 > Plik `.xcodeproj` **nie jest** w repo — generujemy go z `project.yml`, żeby uniknąć
 > konfliktów. To standardowe podejście.
@@ -34,7 +41,7 @@ Wszystkie targety współdzielą App Group `group.xyz.mikebravo.gminamc`.
 
 - macOS z Xcode 15+
 - Konto Apple Developer (do push i instalacji na zegarku)
-- [XcodeGen](https://github.com/yonatankra/xcodegen): `brew install xcodegen`
+- [XcodeGen](https://github.com/yonaskolb/XcodeGen): `brew install xcodegen`
 
 ## Uruchomienie
 

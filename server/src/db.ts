@@ -67,15 +67,15 @@ const openSessionStmt = db.prepare(`
   INSERT INTO sessions (player_id, name, started_at) VALUES (?, ?, ?)
 `);
 
+const markOnlineTx = db.transaction((p: PlayerSnapshot, wasOnline: boolean, ts: number) => {
+  upsertPlayerStmt.run({ id: p.id, name: p.name, ts });
+  if (!wasOnline) openSessionStmt.run(p.id, p.name, ts);
+  return !wasOnline;
+});
+
 /** Records a player coming online and opens a new session. Returns true if this is a new arrival. */
 export function markOnline(p: PlayerSnapshot, wasOnline: boolean): boolean {
-  const ts = now();
-  upsertPlayerStmt.run({ id: p.id, name: p.name, ts });
-  if (!wasOnline) {
-    openSessionStmt.run(p.id, p.name, ts);
-    return true;
-  }
-  return false;
+  return markOnlineTx(p, wasOnline, now()) as boolean;
 }
 
 const touchStmt = db.prepare("UPDATE players SET last_seen = ? WHERE id = ?");
@@ -89,10 +89,13 @@ const closeSessionStmt = db.prepare(`
 `);
 const setOfflineStmt = db.prepare("UPDATE players SET online = 0, last_seen = ? WHERE id = ?");
 
-export function markOffline(id: string): void {
-  const ts = now();
+const markOfflineTx = db.transaction((id: string, ts: number) => {
   closeSessionStmt.run(ts, id);
   setOfflineStmt.run(ts, id);
+});
+
+export function markOffline(id: string): void {
+  markOfflineTx(id, now());
 }
 
 export function markAllOffline(): string[] {

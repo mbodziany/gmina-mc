@@ -15,6 +15,7 @@ final class ServerStore: ObservableObject {
     @AppStorage("apiToken", store: Settings.suite) var apiToken: String = ""
 
     private var timer: Timer?
+    private var lastWidgetSignature = ""
     var isConfigured: Bool { !baseURL.isEmpty }
 
     func startAutoRefresh(every seconds: TimeInterval = 15) {
@@ -39,9 +40,16 @@ final class ServerStore: ObservableObject {
             status = try await client.fetchStatus()
             errorMessage = nil
             lastUpdated = Date()
-            // Keep widgets and complications in sync with the live app.
+            // Keep widgets and complications in sync with the live app — but
+            // only reload when something visible changed, to spare the
+            // system's widget refresh budget (we poll every 15 s).
             SharedCache.save(status)
-            WidgetCenter.shared.reloadAllTimelines()
+            let signature = "\(status.dataSource.rawValue)|\(status.serverReachable)|"
+                + status.online.map(\.name).sorted().joined(separator: ",")
+            if signature != lastWidgetSignature {
+                lastWidgetSignature = signature
+                WidgetCenter.shared.reloadAllTimelines()
+            }
         } catch {
             errorMessage = "Brak połączenia z serwerem statusów"
         }

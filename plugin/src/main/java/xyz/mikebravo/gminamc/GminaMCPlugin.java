@@ -47,8 +47,10 @@ public final class GminaMCPlugin extends JavaPlugin implements Listener {
 
         getServer().getPluginManager().registerEvents(this, this);
 
+        // Sync timer: the roster snapshot must happen on the main thread
+        // (Bukkit API is not thread-safe); only the HTTP call goes async.
         long ticks = heartbeatSeconds * 20L;
-        Bukkit.getScheduler().runTaskTimerAsynchronously(this, this::sendHeartbeat, 20L, ticks);
+        Bukkit.getScheduler().runTaskTimer(this, this::sendHeartbeat, 20L, ticks);
 
         getLogger().info("Gmina MC reporting to " + backendUrl
                 + " every " + heartbeatSeconds + "s");
@@ -64,14 +66,19 @@ public final class GminaMCPlugin extends JavaPlugin implements Listener {
         sendEventAsync("quit", event.getPlayer());
     }
 
-    /** Authoritative snapshot of everyone currently online. */
+    /**
+     * Authoritative snapshot of everyone currently online. Runs on the main
+     * thread (safe roster access), then hands the HTTP POST to an async task.
+     */
     private void sendHeartbeat() {
         StringJoiner players = new StringJoiner(",", "[", "]");
         for (Player p : Bukkit.getOnlinePlayers()) {
             players.add("{\"uuid\":\"" + p.getUniqueId()
                     + "\",\"name\":\"" + escape(p.getName()) + "\"}");
         }
-        post("/api/ingest/heartbeat", "{\"players\":" + players + "}");
+        final String body = "{\"players\":" + players + "}";
+        Bukkit.getScheduler().runTaskAsynchronously(this, () ->
+                post("/api/ingest/heartbeat", body));
     }
 
     /** Instant single event so push arrives within ~1s instead of a heartbeat. */

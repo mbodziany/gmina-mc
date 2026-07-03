@@ -23,7 +23,11 @@ struct SettingsView: View {
             .navigationTitle("Ustawienia")
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Gotowe") { store.startAutoRefresh(); dismiss() }
+                    Button("Gotowe") {
+                        WatchSync.shared.pushSettings() // keep the Watch in sync
+                        store.startAutoRefresh()
+                        dismiss()
+                    }
                 }
             }
         }

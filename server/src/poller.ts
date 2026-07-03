@@ -18,7 +18,10 @@ function normalizeSample(sample: { name: string; id?: string }[] | null): Player
 
 async function pollOnce(): Promise<void> {
   // Plugin is the primary source — only ping when it isn't reporting.
-  if (pluginActive()) return;
+  if (pluginActive()) {
+    consecutiveFailures = 0; // start fresh if we ever have to take over
+    return;
+  }
 
   try {
     const res = await status(config.mc.host, config.mc.port, { timeout: 5000 });

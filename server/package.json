@@ -9,6 +9,7 @@
     "start": "node dist/index.js",
     "dev": "tsx watch src/index.ts",
     "simulate": "node scripts/simulate.mjs",
+    "test": "tsx --test test/tracker.test.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

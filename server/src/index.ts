@@ -1,5 +1,5 @@
 import express, { type NextFunction, type Request, type Response } from "express";
-import { createServer } from "node:http";
+import { createServer, type IncomingMessage } from "node:http";
 import { WebSocketServer, WebSocket } from "ws";
 import { config } from "./config.js";
 import {
@@ -9,7 +9,13 @@ import {
   removeDevice,
 } from "./db.js";
 import { startPoller } from "./poller.js";
-import { trackerEvents, isServerReachable, activeSource, type TrackerEvent } from "./tracker.js";
+import {
+  trackerEvents,
+  isServerReachable,
+  activeSource,
+  startWatchdog,
+  type TrackerEvent,
+} from "./tracker.js";
 import { ingestRouter } from "./ingest.js";
 import { shutdownPush } from "./push.js";
 
@@ -67,7 +73,22 @@ const httpServer = createServer(app);
 // --- WebSocket for live updates ---
 const wss = new WebSocketServer({ server: httpServer, path: "/ws" });
 
-wss.on("connection", (ws: WebSocket) => {
+// Same optional token as the REST API — via header or ?token= (browser
+// WebSocket clients cannot set headers).
+function wsAuthorized(req: IncomingMessage): boolean {
+  if (!config.http.apiToken) return true;
+  const url = new URL(req.url ?? "/", "http://localhost");
+  const token =
+    url.searchParams.get("token") ??
+    (req.headers.authorization || "").replace(/^Bearer\s+/i, "");
+  return token === config.http.apiToken;
+}
+
+wss.on("connection", (ws: WebSocket, req: IncomingMessage) => {
+  if (!wsAuthorized(req)) {
+    ws.close(4401, "unauthorized");
+    return;
+  }
   ws.send(JSON.stringify({ type: "status", data: buildStatus() }));
 });
 
@@ -81,6 +102,7 @@ trackerEvents.on("event", (e: TrackerEvent) => {
 httpServer.listen(config.http.port, () => {
   console.log(`[http] listening on :${config.http.port}`);
   startPoller();
+  startWatchdog(Boolean(config.mc.host));
 });
 
 function shutdown() {

@@ -115,13 +115,26 @@ export function applyPluginEvent(type: "join" | "quit", player: PlayerSnapshot):
   }
 }
 
-/** Called by the SLP poller when the server cannot be reached. */
-export function markUnreachable(source: "slp"): void {
-  if (pluginActive()) return; // plugin still reporting; SLP failure is irrelevant
+/** Called when the current source can no longer confirm the server is up. */
+export function markUnreachable(source: Source): void {
+  if (pluginActive()) return; // plugin still reporting; other failures are irrelevant
   if (serverReachable) {
     serverReachable = false;
     markAllOffline();
     emit({ type: "server-down", onlineCount: 0, source });
-    console.warn("[slp] server unreachable; everyone marked offline");
+    console.warn(`[${source}] server unreachable; everyone marked offline`);
   }
+}
+
+/**
+ * Safety net for the plugin-only setup (MC_HOST empty, SLP disabled): when
+ * heartbeats stop and no poller exists to notice, this closes sessions so
+ * players don't stay "online" forever. With SLP enabled the poller owns
+ * fallback detection and this stays out of the way.
+ */
+export function startWatchdog(slpEnabled: boolean): void {
+  setInterval(() => {
+    if (pluginActive() || slpEnabled) return;
+    markUnreachable("none");
+  }, 10_000).unref();
 }

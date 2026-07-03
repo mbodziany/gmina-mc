@@ -2,6 +2,13 @@
 
 Testuj warstwami — od najłatwiejszej (bez niczego) do pełnej (Mac + serwer).
 
+## Warstwa 0 — automatycznie (CI + testy jednostkowe)
+
+Każdy push uruchamia GitHub Actions (`.github/workflows/ci.yml`):
+- backend: typecheck, build i testy jednostkowe trackera (`cd server && npm test` lokalnie),
+- plugin: pełny `mvn package` — **gotowy `GminaMC.jar` do pobrania z artefaktów runa**
+  (zakładka Actions → wybierz run → *Artifacts*), bez lokalnego Mavena.
+
 ## Warstwa 1 — backend bez Minecrafta i bez Maca ✅ (najszybsze)
 
 Udajemy plugin symulatorem; widać cały przepływ: status, przełączanie źródła, push.
